@@ -33,7 +33,6 @@ class AuthProvider with ChangeNotifier {
       User? user = result.user;
       
       if (user != null) {
-        // Store additional user details in Firestore
         await _db.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'name': name,
@@ -54,8 +53,6 @@ class AuthProvider with ChangeNotifier {
     try {
       String email = identifier;
       
-      // If the identifier is a phone number (all digits and long enough), 
-      // find the corresponding email in Firestore.
       if (RegExp(r'^[0-9]+$').hasMatch(identifier) && identifier.length >= 10) {
         final query = await _db
             .collection('users')
@@ -92,13 +89,37 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateProfile({required String name}) async {
+  Future<void> updateProfile({String? name, String? email, String? phone}) async {
     if (_user == null) return;
     try {
-      await _db.collection('users').doc(_user!.uid).update({
-        'name': name,
-      });
+      Map<String, dynamic> updates = {};
+      if (name != null) updates['name'] = name;
+      if (email != null) {
+        await _user!.verifyBeforeUpdateEmail(email);
+        updates['email'] = email;
+      }
+      if (phone != null) updates['phone'] = phone;
+
+      if (updates.isNotEmpty) {
+        await _db.collection('users').doc(_user!.uid).update(updates);
+      }
       notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    if (_user == null || _user!.email == null) return;
+    try {
+      // Re-authenticate user
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: _user!.email!,
+        password: currentPassword,
+      );
+      await _user!.reauthenticateWithCredential(credential);
+      // Update password
+      await _user!.updatePassword(newPassword);
     } catch (e) {
       rethrow;
     }
@@ -108,9 +129,7 @@ class AuthProvider with ChangeNotifier {
     if (_user == null) return;
     try {
       String uid = _user!.uid;
-      // 1. Delete user data from Firestore
       await _db.collection('users').doc(uid).delete();
-      // 2. Delete the user from Firebase Auth
       await _user!.delete();
       _user = null;
       notifyListeners();

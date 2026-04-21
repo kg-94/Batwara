@@ -16,6 +16,8 @@ import './screens/activity_screen.dart';
 import './screens/recurring_expenses_screen.dart';
 import './screens/history_screen.dart';
 import './screens/tools_screen.dart';
+import './screens/privacy_policy_screen.dart';
+import './screens/contact_us_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -92,6 +94,8 @@ class MyApp extends StatelessWidget {
             RecurringExpensesScreen.routeName: (ctx) => const RecurringExpensesScreen(),
             HistoryScreen.routeName: (ctx) => const HistoryScreen(),
             ToolsScreen.routeName: (ctx) => const ToolsScreen(),
+            PrivacyPolicyScreen.routeName: (ctx) => const PrivacyPolicyScreen(),
+            ContactUsScreen.routeName: (ctx) => const ContactUsScreen(),
           },
         ),
       ),

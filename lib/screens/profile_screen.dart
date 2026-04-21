@@ -13,6 +13,13 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  
   Map<String, dynamic>? _userData;
   bool _isLoading = false;
   bool _isInit = true;
@@ -37,6 +44,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           _userData = data;
           _nameController.text = data['name'] ?? '';
+          _emailController.text = data['email'] ?? '';
+          _phoneController.text = data['phone'] ?? '';
         });
       }
     } catch (e) {
@@ -53,9 +62,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (_nameController.text.isEmpty) {
+    if (_nameController.text.isEmpty || _emailController.text.isEmpty || _phoneController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name cannot be empty')),
+        const SnackBar(content: Text('All fields are required')),
       );
       return;
     }
@@ -67,12 +76,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await Provider.of<AuthProvider>(context, listen: false).updateProfile(
         name: _nameController.text.trim(),
+        email: _emailController.text.trim() != _userData?['email'] ? _emailController.text.trim() : null,
+        phone: _phoneController.text.trim(),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
+          const SnackBar(content: Text('Profile updated successfully. Check email for verification if changed.')),
         );
-        Navigator.of(context).pop();
+        _fetchUserData();
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,12 +98,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _showChangePasswordDialog() {
+    _currentPasswordController.clear();
+    _newPasswordController.clear();
+    _confirmPasswordController.clear();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Change Password'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _currentPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Current Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_open),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _newPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'New Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _confirmPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm New Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_clock_outlined),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_currentPasswordController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Current password required')));
+                return;
+              }
+              if (_newPasswordController.text.length < 6) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New password must be at least 6 characters')));
+                return;
+              }
+              if (_newPasswordController.text != _confirmPasswordController.text) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New passwords do not match')));
+                return;
+              }
+
+              try {
+                await Provider.of<AuthProvider>(context, listen: false).changePassword(
+                  currentPassword: _currentPasswordController.text,
+                  newPassword: _newPasswordController.text,
+                );
+                if (mounted) {
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Password changed successfully')),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: ${e.toString().split(']').last}')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(minimumSize: const Size(100, 40)),
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('Profile'),
         elevation: 0,
       ),
       body: _isLoading
@@ -147,28 +248,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           _buildInfoRow(Icons.person_outline, 'Full Name', _nameController, enabled: true),
                           const Divider(height: 32),
-                          _buildInfoRow(Icons.email_outlined, 'Email Address', TextEditingController(text: _userData?['email'] ?? 'N/A'), enabled: false),
+                          _buildInfoRow(Icons.email_outlined, 'Email Address', _emailController, enabled: true),
                           const Divider(height: 32),
-                          _buildInfoRow(Icons.phone_android_outlined, 'Mobile Number', TextEditingController(text: _userData?['phone'] ?? 'N/A'), enabled: false),
+                          _buildInfoRow(Icons.phone_android_outlined, 'Mobile Number', _phoneController, enabled: true),
                         ],
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ListTile(
+                    leading: const Icon(Icons.lock_outline, color: Colors.teal),
+                    title: const Text('Security', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text('Change your account password'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showChangePasswordDialog,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.grey.shade200),
                     ),
                   ),
                   const SizedBox(height: 32),
                   ElevatedButton(
                     onPressed: _saveProfile,
                     child: const Text('Save Changes'),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton(
-                    onPressed: () => Provider.of<AuthProvider>(context, listen: false).signOut(),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      side: const BorderSide(color: Colors.red),
-                      foregroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Logout'),
                   ),
                   const SizedBox(height: 40),
                 ],
