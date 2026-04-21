@@ -226,7 +226,15 @@ class _MembersScreenState extends State<MembersScreen> {
                           child: Text(member.name[0].toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
                         ),
                         title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                        subtitle: member.upiId != null ? Text(member.upiId!) : null,
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (member.phone != null)
+                              Text(member.phone!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                            if (member.upiId != null)
+                              Text(member.upiId!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          ],
+                        ),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,

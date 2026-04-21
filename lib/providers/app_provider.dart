@@ -9,18 +9,84 @@ import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_contacts/flutter_contacts.dart' hide Group;
+import 'dart:async';
 
 class AppProvider with ChangeNotifier {
-  final List<Member> _members = [];
-  final List<Expense> _expenses = [];
-  final List<Group> _groups = [];
-  final List<ActivityLog> _activities = [];
-  final List<RecurringExpense> _recurringExpenses = [];
-  final List<Settlement> _settlementHistory = [];
+  List<Member> _members = [];
+  List<Expense> _expenses = [];
+  List<Group> _groups = [];
+  List<ActivityLog> _activities = [];
+  List<RecurringExpense> _recurringExpenses = [];
+  List<Settlement> _settlementHistory = [];
   final List<Map<String, dynamic>> _recommendedFriends = [];
   final _uuid = Uuid();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  StreamSubscription? _groupsSub;
+  StreamSubscription? _expensesSub;
+  StreamSubscription? _membersSub;
+
+  AppProvider() {
+    _auth.authStateChanges().listen((user) {
+      if (user != null) {
+        _initListeners(user.uid);
+      } else {
+        _cancelListeners();
+      }
+    });
+  }
+
+  void _initListeners(String uid) {
+    _cancelListeners();
+
+    _groupsSub = _db
+        .collection('groups')
+        .where('memberIds', arrayContains: uid)
+        .snapshots()
+        .listen((snapshot) {
+      _groups = snapshot.docs.map((doc) => Group.fromMap(doc.data())).toList();
+      notifyListeners();
+    });
+
+    _membersSub = _db
+        .collection('users')
+        .doc(uid)
+        .collection('friends')
+        .snapshots()
+        .listen((snapshot) {
+      _members = snapshot.docs.map((doc) => Member.fromMap(doc.data())).toList();
+      _db.collection('users').doc(uid).get().then((doc) {
+        if (doc.exists) {
+          final data = doc.data();
+          final self = Member(id: uid, name: data?['name'] ?? 'You', upiId: data?['upiId'], phone: data?['phone']);
+          if (!_members.any((m) => m.id == uid)) {
+            _members.add(self);
+          }
+        }
+      });
+      notifyListeners();
+    });
+
+    _expensesSub = _db
+        .collection('expenses')
+        .where('splitDetails.$uid', isGreaterThanOrEqualTo: -999999)
+        .snapshots()
+        .listen((snapshot) {
+       _expenses = snapshot.docs.map((doc) => Expense.fromMap(doc.data())).toList();
+       notifyListeners();
+    });
+  }
+
+  void _cancelListeners() {
+    _groupsSub?.cancel();
+    _expensesSub?.cancel();
+    _membersSub?.cancel();
+    _groups = [];
+    _expenses = [];
+    _members = [];
+    _activities = [];
+  }
 
   List<Member> get members => [..._members];
   List<Expense> get expenses => [..._expenses];
@@ -30,7 +96,7 @@ class AppProvider with ChangeNotifier {
   List<Settlement> get settlementHistory => [..._settlementHistory];
   List<Map<String, dynamic>> get recommendedFriends => [..._recommendedFriends];
 
-  void _logActivity(String title, String subtitle, ActivityType type, {String? groupId}) {
+  Future<void> _logActivity(String title, String subtitle, ActivityType type, {String? groupId}) async {
     final activity = ActivityLog(
       id: _uuid.v4(),
       title: title,
@@ -45,9 +111,7 @@ class AppProvider with ChangeNotifier {
   }
 
   Future<void> syncContacts() async {
-    if (!await FlutterContacts.requestPermission(readonly: true)) {
-      return;
-    }
+    if (!await FlutterContacts.requestPermission(readonly: true)) return;
 
     final contacts = await FlutterContacts.getContacts(withProperties: true);
     final List<String> phoneNumbers = [];
@@ -69,10 +133,7 @@ class AppProvider with ChangeNotifier {
       int end = (i + 30 < phoneNumbers.length) ? i + 30 : phoneNumbers.length;
       final batch = phoneNumbers.sublist(i, end);
 
-      final query = await _db
-          .collection('users')
-          .where('phone', whereIn: batch)
-          .get();
+      final query = await _db.collection('users').where('phone', whereIn: batch).get();
 
       for (var doc in query.docs) {
         final data = doc.data();
@@ -99,39 +160,64 @@ class AppProvider with ChangeNotifier {
     return null;
   }
 
-  void addMemberFromSearch(Map<String, dynamic> userData) {
+  Future<void> addMemberFromSearch(Map<String, dynamic> userData) async {
     if (_members.any((m) => m.id == userData['uid'])) return;
-    final newMember = Member(id: userData['uid'], name: userData['name'], upiId: userData['upiId']);
-    _members.add(newMember);
+    final newMember = Member(
+      id: userData['uid'], 
+      name: userData['name'], 
+      upiId: userData['upiId'],
+      phone: userData['phone'],
+    );
+    
+    await _db
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .collection('friends')
+        .doc(newMember.id)
+        .set(newMember.toMap());
+
     _logActivity('Added Friend', '${userData['name']} is now your friend', ActivityType.memberAdded);
-    notifyListeners();
   }
 
-  void addGroup(String name) {
+  Future<void> addGroup(String name) async {
     final groupId = _uuid.v4();
-    final newGroup = Group(id: groupId, name: name, memberIds: []);
-    _groups.add(newGroup);
+    final uid = _auth.currentUser!.uid;
+    final newGroup = Group(
+      id: groupId,
+      name: name,
+      memberIds: [uid],
+      createdBy: uid,
+    );
+    
+    await _db.collection('groups').doc(groupId).set(newGroup.toMap());
     _logActivity('Group Created', 'You created group "$name"', ActivityType.groupCreated, groupId: groupId);
-    notifyListeners();
   }
 
-  void addMember(String name, {String? upiId}) {
-    final newMember = Member(id: _uuid.v4(), name: name, upiId: upiId);
-    _members.add(newMember);
+  Future<void> addMember(String name, {String? upiId, String? phone}) async {
+    final memberId = _uuid.v4();
+    final newMember = Member(id: memberId, name: name, upiId: upiId, phone: phone);
+    
+    await _db
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .collection('friends')
+        .doc(memberId)
+        .set(newMember.toMap());
+
     _logActivity('Added Friend', 'Added $name manually', ActivityType.memberAdded);
-    notifyListeners();
   }
 
-  void addExpense({
+  Future<void> addExpense({
     required String description,
     required double amount,
     required String paidByMemberId,
     required Map<String, double> splitDetails,
     SplitType splitType = SplitType.equal,
     ExpenseCategory category = ExpenseCategory.others,
-  }) {
+  }) async {
+    final id = _uuid.v4();
     final newExpense = Expense(
-      id: _uuid.v4(),
+      id: id,
       description: description,
       amount: amount,
       date: DateTime.now(),
@@ -140,12 +226,12 @@ class AppProvider with ChangeNotifier {
       splitType: splitType,
       category: category,
     );
-    _expenses.add(newExpense);
+    
+    await _db.collection('expenses').doc(id).set(newExpense.toMap());
     _logActivity('Expense Added', 'Added "$description" for ₹$amount', ActivityType.expenseAdded);
-    notifyListeners();
   }
 
-  void settleDebt(String fromId, String toId, double amount, {String? groupId}) {
+  Future<void> settleDebt(String fromId, String toId, double amount, {String? groupId}) async {
     final settlement = Settlement(
       id: _uuid.v4(),
       fromMemberId: fromId,
@@ -156,8 +242,7 @@ class AppProvider with ChangeNotifier {
     );
     _settlementHistory.insert(0, settlement);
     
-    // Create a "settlement" expense to balance things out
-    addExpense(
+    await addExpense(
       description: 'Settlement: ${getMemberName(fromId)} to ${getMemberName(toId)}',
       amount: amount,
       paidByMemberId: fromId,
@@ -183,18 +268,14 @@ class AppProvider with ChangeNotifier {
     return balance;
   }
 
-  void addFriendToGroup(String groupId, String memberId) {
-    final groupIndex = _groups.indexWhere((g) => g.id == groupId);
-    if (groupIndex != -1) {
-      if (!_groups[groupIndex].memberIds.contains(memberId)) {
-        _groups[groupIndex].memberIds.add(memberId);
-        _logActivity('Member Added', '${getMemberName(memberId)} added to group', ActivityType.memberAdded, groupId: groupId);
-        notifyListeners();
-      }
-    }
+  Future<void> addFriendToGroup(String groupId, String memberId) async {
+    await _db.collection('groups').doc(groupId).update({
+      'memberIds': FieldValue.arrayUnion([memberId])
+    });
+    _logActivity('Member Added', '${getMemberName(memberId)} added to group', ActivityType.memberAdded, groupId: groupId);
   }
 
-  void addExpenseToGroup({
+  Future<void> addExpenseToGroup({
     required String groupId,
     required String description,
     required double amount,
@@ -202,7 +283,7 @@ class AppProvider with ChangeNotifier {
     required Map<String, double> splitDetails,
     SplitType splitType = SplitType.equal,
     ExpenseCategory category = ExpenseCategory.others,
-  }) {
+  }) async {
     final expenseId = _uuid.v4();
     final newExpense = Expense(
       id: expenseId,
@@ -214,29 +295,26 @@ class AppProvider with ChangeNotifier {
       splitType: splitType,
       category: category,
     );
-    _expenses.add(newExpense);
-
-    final groupIndex = _groups.indexWhere((g) => g.id == groupId);
-    if (groupIndex != -1) {
-      final updatedGroup = Group(
-        id: _groups[groupIndex].id,
-        name: _groups[groupIndex].name,
-        memberIds: _groups[groupIndex].memberIds,
-        expenseIds: [..._groups[groupIndex].expenseIds, expenseId],
-      );
-      _groups[groupIndex] = updatedGroup;
-      _logActivity('Expense Added', 'Added "$description" in group', ActivityType.expenseAdded, groupId: groupId);
-    }
-    notifyListeners();
+    
+    WriteBatch batch = _db.batch();
+    batch.set(_db.collection('expenses').doc(expenseId), newExpense.toMap());
+    batch.update(_db.collection('groups').doc(groupId), {
+      'expenseIds': FieldValue.arrayUnion([expenseId])
+    });
+    
+    await batch.commit();
+    _logActivity('Expense Added', 'Added "$description" in group', ActivityType.expenseAdded, groupId: groupId);
   }
 
   List<Member> getMembersByGroup(String groupId) {
-    final group = _groups.firstWhere((g) => g.id == groupId);
+    final group = _groups.firstWhere((g) => g.id == groupId, orElse: () => Group(id: '', name: '', memberIds: []));
+    if (group.id.isEmpty) return [];
     return _members.where((m) => group.memberIds.contains(m.id)).toList();
   }
 
   List<Expense> getExpensesByGroup(String groupId) {
-    final group = _groups.firstWhere((g) => g.id == groupId);
+    final group = _groups.firstWhere((g) => g.id == groupId, orElse: () => Group(id: '', name: '', memberIds: []));
+    if (group.id.isEmpty) return [];
     return _expenses.where((e) => group.expenseIds.contains(e.id)).toList();
   }
 
