@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import './signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -11,20 +13,66 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _isEmail = true;
 
-  void _login() {
-    // Basic validation
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+  @override
+  void initState() {
+    super.initState();
+    _identifierController.addListener(_detectInputType);
+  }
+
+  @override
+  void dispose() {
+    _identifierController.removeListener(_detectInputType);
+    _identifierController.dispose();
+    super.dispose();
+  }
+
+  void _detectInputType() {
+    final text = _identifierController.text;
+    if (text.isEmpty) return;
+
+    // Simple detection: if it's all digits, assume it's a phone number
+    final isDigits = RegExp(r'^[0-9]+$').hasMatch(text);
+    if (isDigits != !_isEmail) {
+      setState(() {
+        _isEmail = !isDigits;
+      });
+    }
+  }
+
+  Future<void> _login() async {
+    if (_identifierController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter email and password')),
+        const SnackBar(content: Text('Please enter your credentials')),
       );
       return;
     }
-    
-    // For now, just navigate to home
-    Navigator.of(context).pushReplacementNamed('/');
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await Provider.of<AuthProvider>(context, listen: false).signIn(
+        identifier: _identifierController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -54,34 +102,49 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 32),
               TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
+                controller: _identifierController,
+                decoration: InputDecoration(
+                  labelText: 'Email or Mobile Number',
+                  hintText: 'Enter your email or 10-digit mobile',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: Icon(_identifierController.text.isEmpty
+                      ? Icons.login
+                      : (_isEmail ? Icons.email : Icons.phone)),
                 ),
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: TextInputType.text,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
-                obscureText: true,
+                obscureText: _obscurePassword,
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _login,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Login', style: TextStyle(fontSize: 18)),
-              ),
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _login,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.teal,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Login', style: TextStyle(fontSize: 18)),
+                    ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () {

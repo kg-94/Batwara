@@ -1,4 +1,19 @@
-import 'package:uuid/uuid.dart';
+enum SplitType {
+  equal,
+  percentage,
+  shares,
+  exact,
+}
+
+enum ExpenseCategory {
+  food,
+  travel,
+  rent,
+  entertainment,
+  shopping,
+  utilities,
+  others,
+}
 
 class Expense {
   final String id;
@@ -6,7 +21,9 @@ class Expense {
   final double amount;
   final DateTime date;
   final String paidByMemberId;
-  final Map<String, double> splitDetails; // memberId -> amount
+  final SplitType splitType;
+  final ExpenseCategory category;
+  final Map<String, double> splitDetails; // memberId -> amount or percentage or shares
 
   Expense({
     required this.id,
@@ -15,5 +32,7 @@ class Expense {
     required this.date,
     required this.paidByMemberId,
     required this.splitDetails,
+    this.splitType = SplitType.equal,
+    this.category = ExpenseCategory.others,
   });
 }
