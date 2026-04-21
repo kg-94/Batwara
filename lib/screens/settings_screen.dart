@@ -1,12 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/auth_provider.dart';
 import './profile_screen.dart';
 import './privacy_policy_screen.dart';
 import './contact_us_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  String _version = '1.0.0';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPackageInfo();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      _version = '${info.version}+${info.buildNumber}';
+    });
+  }
 
   void _showDeleteDialog(BuildContext context) {
     showDialog(
@@ -98,12 +119,12 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: const Text('About Batwara'),
-            subtitle: const Text('Version 1.0.0'),
+            subtitle: Text('Version $_version'),
             onTap: () {
               showAboutDialog(
                 context: context,
                 applicationName: 'Batwara',
-                applicationVersion: '1.0.0',
+                applicationVersion: _version,
                 applicationLegalese: '© 2026 Batwara Team',
               );
             },

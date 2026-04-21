@@ -19,6 +19,7 @@ class AppProvider with ChangeNotifier {
   List<RecurringExpense> _recurringExpenses = [];
   List<Settlement> _settlementHistory = [];
   final List<Map<String, dynamic>> _recommendedFriends = [];
+  final List<Contact> _notOnBatwara = [];
   final _uuid = Uuid();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -86,6 +87,8 @@ class AppProvider with ChangeNotifier {
     _expenses = [];
     _members = [];
     _activities = [];
+    _notOnBatwara.clear();
+    _recommendedFriends.clear();
   }
 
   List<Member> get members => [..._members];
@@ -95,6 +98,7 @@ class AppProvider with ChangeNotifier {
   List<RecurringExpense> get recurringExpenses => [..._recurringExpenses];
   List<Settlement> get settlementHistory => [..._settlementHistory];
   List<Map<String, dynamic>> get recommendedFriends => [..._recommendedFriends];
+  List<Contact> get notOnBatwara => [..._notOnBatwara];
 
   Future<void> _logActivity(String title, String subtitle, ActivityType type, {String? groupId}) async {
     final activity = ActivityLog(
@@ -115,6 +119,7 @@ class AppProvider with ChangeNotifier {
 
     final contacts = await FlutterContacts.getContacts(withProperties: true);
     final List<String> phoneNumbers = [];
+    final Map<String, Contact> phoneToContact = {};
 
     for (var contact in contacts) {
       for (var phone in contact.phones) {
@@ -122,12 +127,16 @@ class AppProvider with ChangeNotifier {
         if (normalized.length >= 10) {
           normalized = normalized.substring(normalized.length - 10);
           phoneNumbers.add(normalized);
+          phoneToContact[normalized] = contact;
         }
       }
     }
 
     if (phoneNumbers.isEmpty) return;
     _recommendedFriends.clear();
+    _notOnBatwara.clear();
+
+    final Set<String> registeredPhones = {};
 
     for (var i = 0; i < phoneNumbers.length; i += 30) {
       int end = (i + 30 < phoneNumbers.length) ? i + 30 : phoneNumbers.length;
@@ -137,6 +146,7 @@ class AppProvider with ChangeNotifier {
 
       for (var doc in query.docs) {
         final data = doc.data();
+        registeredPhones.add(data['phone']);
         if (data['uid'] != _auth.currentUser?.uid &&
             !_members.any((m) => m.id == data['uid']) &&
             !_recommendedFriends.any((rf) => rf['uid'] == data['uid'])) {
@@ -144,6 +154,18 @@ class AppProvider with ChangeNotifier {
         }
       }
     }
+
+    // Identify contacts NOT on Batwara
+    for (var normalized in phoneToContact.keys) {
+      if (!registeredPhones.contains(normalized)) {
+        final contact = phoneToContact[normalized]!;
+        if (!_notOnBatwara.any((c) => c.id == contact.id)) {
+          _notOnBatwara.add(contact);
+        }
+      }
+    }
+
+    _notOnBatwara.sort((a, b) => a.displayName.compareTo(b.displayName));
     notifyListeners();
   }
 
@@ -179,7 +201,7 @@ class AppProvider with ChangeNotifier {
     _logActivity('Added Friend', '${userData['name']} is now your friend', ActivityType.memberAdded);
   }
 
-  Future<void> addGroup(String name) async {
+  Future<void> addGroup(String name, {GroupType type = GroupType.other}) async {
     final groupId = _uuid.v4();
     final uid = _auth.currentUser!.uid;
     final newGroup = Group(
@@ -187,6 +209,7 @@ class AppProvider with ChangeNotifier {
       name: name,
       memberIds: [uid],
       createdBy: uid,
+      type: type,
     );
     
     await _db.collection('groups').doc(groupId).set(newGroup.toMap());

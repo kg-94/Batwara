@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../models/group.dart';
 import './group_detail_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
@@ -14,36 +15,115 @@ class GroupsScreen extends StatefulWidget {
 
 class _GroupsScreenState extends State<GroupsScreen> {
   final _groupNameController = TextEditingController();
+  GroupType _selectedType = GroupType.other;
 
   void _showAddGroupDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create New Group'),
-        content: TextField(
-          controller: _groupNameController,
-          decoration: const InputDecoration(labelText: 'Group Name'),
-          autofocus: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Create New Group'),
+              IconButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                icon: const Icon(Icons.close),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _groupNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Group Name',
+                    hintText: 'e.g. Goa Trip, Apartment 204',
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 20),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Select Category:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: GroupType.values.map((type) {
+                    final isSelected = _selectedType == type;
+                    return InkWell(
+                      onTap: () {
+                        setDialogState(() {
+                          _selectedType = type;
+                        });
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _getGroupIcon(type),
+                              color: isSelected ? Colors.white : Colors.grey.shade600,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            type.name[0].toUpperCase() + type.name.substring(1),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                if (_groupNameController.text.isNotEmpty) {
+                  Provider.of<AppProvider>(context, listen: false)
+                      .addGroup(_groupNameController.text.trim(), type: _selectedType);
+                  _groupNameController.clear();
+                  _selectedType = GroupType.other;
+                  Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (_groupNameController.text.isNotEmpty) {
-                Provider.of<AppProvider>(context, listen: false)
-                    .addGroup(_groupNameController.text.trim());
-                _groupNameController.clear();
-                Navigator.of(ctx).pop();
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
       ),
     );
+  }
+
+  IconData _getGroupIcon(GroupType type) {
+    switch (type) {
+      case GroupType.trip: return Icons.flight_takeoff;
+      case GroupType.home: return Icons.home_work;
+      case GroupType.couple: return Icons.favorite;
+      case GroupType.movie: return Icons.movie;
+      case GroupType.dining: return Icons.restaurant;
+      case GroupType.party: return Icons.celebration;
+      case GroupType.other: return Icons.group_work;
+    }
   }
 
   @override
@@ -108,13 +188,10 @@ class _GroupsScreenState extends State<GroupsScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Center(
-                      child: Text(
-                        groups[i].name[0].toUpperCase(),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Icon(
+                        _getGroupIcon(groups[i].type),
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 28,
                       ),
                     ),
                   ),

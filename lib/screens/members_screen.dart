@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/app_provider.dart';
 
 class MembersScreen extends StatefulWidget {
@@ -65,6 +66,20 @@ class _MembersScreenState extends State<MembersScreen> {
     );
   }
 
+  void _inviteContact(String phone) async {
+    final message = Uri.encodeComponent("Hey! I'm using Batwara to track expenses. Join me: https://batwara.app/invite");
+    final url = Uri.parse("sms:$phone?body=$message");
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch SMS app')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final appData = Provider.of<AppProvider>(context);
@@ -81,182 +96,223 @@ class _MembersScreenState extends State<MembersScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (appData.recommendedFriends.isNotEmpty) ...[
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (appData.recommendedFriends.isNotEmpty) ...[
+                    Text(
+                      'Recommended Friends',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 100,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: appData.recommendedFriends.length,
+                        itemBuilder: (ctx, i) {
+                          final rf = appData.recommendedFriends[i];
+                          return Card(
+                            margin: const EdgeInsets.only(right: 8),
+                            child: Container(
+                              width: 150,
+                              padding: const EdgeInsets.all(8),
+                              child: Column(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 15,
+                                    child: Text(rf['name'][0].toUpperCase()),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    rf['name'],
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  InkWell(
+                                    onTap: () => _addRecommendedFriend(rf),
+                                    child: const Text('Add', style: TextStyle(color: Colors.teal, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   Text(
-                    'Recommended Friends',
+                    'Search for friends',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  SizedBox(
-                    height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: appData.recommendedFriends.length,
-                      itemBuilder: (ctx, i) {
-                        final rf = appData.recommendedFriends[i];
-                        return Card(
-                          margin: const EdgeInsets.only(right: 8),
-                          child: Container(
-                            width: 150,
-                            padding: const EdgeInsets.all(8),
-                            child: Column(
-                              children: [
-                                CircleAvatar(
-                                  radius: 15,
-                                  child: Text(rf['name'][0].toUpperCase()),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  rf['name'],
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                InkWell(
-                                  onTap: () => _addRecommendedFriend(rf),
-                                  child: const Text('Add', style: TextStyle(color: Colors.teal, fontSize: 12, fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Email or Mobile Number',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                           ),
-                        );
-                      },
-                    ),
+                          keyboardType: TextInputType.emailAddress,
+                          onSubmitted: (_) => _searchFriend(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        onPressed: _isSearching ? null : _searchFriend,
+                        icon: _isSearching 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.arrow_forward),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
-                ],
-                Text(
-                  'Search for friends',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Email or Mobile Number',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        onSubmitted: (_) => _searchFriend(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filled(
-                      onPressed: _isSearching ? null : _searchFriend,
-                      icon: _isSearching 
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.arrow_forward),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (_hasSearched)
-                  _foundUser != null
-                      ? Card(
-                          elevation: 0,
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
-                          ),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              child: Text(_foundUser!['name'][0].toUpperCase(), style: const TextStyle(color: Colors.white)),
+                  if (_hasSearched)
+                    _foundUser != null
+                        ? Card(
+                            elevation: 0,
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
                             ),
-                            title: Text(_foundUser!['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(_foundUser!['email'] ?? _foundUser!['phone'] ?? ''),
-                            trailing: TextButton.icon(
-                              onPressed: _addFoundFriend,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add'),
-                              style: TextButton.styleFrom(
+                            child: ListTile(
+                              leading: CircleAvatar(
                                 backgroundColor: Theme.of(context).colorScheme.primary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: Text(_foundUser!['name'][0].toUpperCase(), style: const TextStyle(color: Colors.white)),
+                              ),
+                              title: Text(_foundUser!['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(_foundUser!['email'] ?? _foundUser!['phone'] ?? ''),
+                              trailing: TextButton.icon(
+                                onPressed: _addFoundFriend,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add'),
+                                style: TextButton.styleFrom(
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
                               ),
                             ),
+                          )
+                        : const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: Text('No user found with those details.', style: TextStyle(color: Colors.grey)),
+                            ),
                           ),
-                        )
-                      : const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text('No user found with those details.', style: TextStyle(color: Colors.grey)),
-                          ),
-                        ),
-              ],
+                ],
+              ),
             ),
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: appData.members.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+          const SliverToBoxAdapter(child: Divider(height: 1)),
+          if (appData.members.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text('Friends', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.grey)),
+              ),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final member = appData.members[i];
+                  final balance = appData.getMemberBalance(member.id);
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                      child: Text(member.name[0].toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                    ),
+                    title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.people_outline, size: 64, color: Colors.grey.shade300),
-                        const SizedBox(height: 16),
-                        Text('Your friend list is empty', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-                        const Text('Search for friends above to add them', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        if (member.phone != null)
+                          Text(member.phone!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                        if (member.upiId != null)
+                          Text(member.upiId!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: appData.members.length,
-                    itemBuilder: (ctx, i) {
-                      final member = appData.members[i];
-                      final balance = appData.getMemberBalance(member.id);
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
-                          child: Text(member.name[0].toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          balance >= 0 ? 'Settled' : 'Owes you',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                         ),
-                        title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (member.phone != null)
-                              Text(member.phone!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                            if (member.upiId != null)
-                              Text(member.upiId!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                          ],
+                        Text(
+                          '₹${balance.abs().toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: balance >= 0 ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              balance >= 0 ? 'Settled' : 'Owes you',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                            ),
-                            Text(
-                              '₹${balance.abs().toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: balance >= 0 ? Colors.green : Colors.red,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
+                      ],
+                    ),
+                  );
+                },
+                childCount: appData.members.length,
+              ),
+            ),
+          ],
+          if (appData.notOnBatwara.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text('Invite Contacts', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.grey)),
+              ),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final contact = appData.notOnBatwara[i];
+                  final phone = contact.phones.isNotEmpty ? contact.phones.first.number : '';
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.grey.shade200,
+                      child: Text(contact.displayName.isNotEmpty ? contact.displayName[0].toUpperCase() : '?', style: TextStyle(color: Colors.grey.shade600)),
+                    ),
+                    title: Text(contact.displayName, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    subtitle: Text(phone, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    trailing: TextButton(
+                      onPressed: () => _inviteContact(phone),
+                      child: const Text('Invite'),
+                    ),
+                  );
+                },
+                childCount: appData.notOnBatwara.length,
+              ),
+            ),
+          ],
+          if (appData.members.isEmpty && appData.notOnBatwara.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.people_outline, size: 64, color: Colors.grey.shade300),
+                    const SizedBox(height: 16),
+                    Text('Your friend list is empty', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+                    const Text('Sync or search to add friends', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
