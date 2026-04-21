@@ -58,13 +58,29 @@ class _MembersScreenState extends State<MembersScreen> {
     }
   }
 
+  void _addRecommendedFriend(Map<String, dynamic> userData) {
+    Provider.of<AppProvider>(context, listen: false).addMemberFromSearch(userData);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${userData['name']} added from contacts!')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appData = Provider.of<AppProvider>(context);
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(title: const Text('Manage Friends')),
+      appBar: AppBar(
+        title: const Text('Manage Friends'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: () => appData.syncContacts(),
+            tooltip: 'Sync Contacts',
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -72,6 +88,49 @@ class _MembersScreenState extends State<MembersScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (appData.recommendedFriends.isNotEmpty) ...[
+                  Text(
+                    'Recommended Friends',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: appData.recommendedFriends.length,
+                      itemBuilder: (ctx, i) {
+                        final rf = appData.recommendedFriends[i];
+                        return Card(
+                          margin: const EdgeInsets.only(right: 8),
+                          child: Container(
+                            width: 150,
+                            padding: const EdgeInsets.all(8),
+                            child: Column(
+                              children: [
+                                CircleAvatar(
+                                  radius: 15,
+                                  child: Text(rf['name'][0].toUpperCase()),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  rf['name'],
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                InkWell(
+                                  onTap: () => _addRecommendedFriend(rf),
+                                  child: const Text('Add', style: TextStyle(color: Colors.teal, fontSize: 12, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Text(
                   'Search for friends',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),

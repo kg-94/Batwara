@@ -12,6 +12,10 @@ import './screens/signup_screen.dart';
 import './screens/profile_screen.dart';
 import './screens/groups_screen.dart';
 import './screens/group_detail_screen.dart';
+import './screens/activity_screen.dart';
+import './screens/recurring_expenses_screen.dart';
+import './screens/history_screen.dart';
+import './screens/tools_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -84,6 +88,10 @@ class MyApp extends StatelessWidget {
             ProfileScreen.routeName: (ctx) => const ProfileScreen(),
             GroupsScreen.routeName: (ctx) => const GroupsScreen(),
             GroupDetailScreen.routeName: (ctx) => const GroupDetailScreen(),
+            ActivityScreen.routeName: (ctx) => const ActivityScreen(),
+            RecurringExpensesScreen.routeName: (ctx) => const RecurringExpensesScreen(),
+            HistoryScreen.routeName: (ctx) => const HistoryScreen(),
+            ToolsScreen.routeName: (ctx) => const ToolsScreen(),
           },
         ),
       ),

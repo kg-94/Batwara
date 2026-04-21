@@ -13,6 +13,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
+  Map<String, dynamic>? _userData;
   bool _isLoading = false;
   bool _isInit = true;
 
@@ -31,9 +32,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final userData = await authProvider.getUserData();
-      if (userData != null) {
-        _nameController.text = userData['name'] ?? '';
+      final data = await authProvider.getUserData();
+      if (data != null) {
+        setState(() {
+          _userData = data;
+          _nameController.text = data['name'] ?? '';
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,66 +89,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<AuthProvider>(context).user;
-
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text('My Profile'),
-        actions: [
-          if (!_isLoading)
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _saveProfile,
-            ),
-        ],
+        title: const Text('Settings'),
+        elevation: 0,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CircleAvatar(
-                    radius: 50,
-                    child: Icon(Icons.person, size: 50),
-                  ),
-                  const SizedBox(height: 24),
-                  TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
+                  Center(
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          child: Text(
+                            (_userData?['name'] ?? 'U')[0].toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _userData?['name'] ?? 'Loading...',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          _userData?['email'] ?? '',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
                     ),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Profile Information',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
-                    enabled: false,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      hintText: user?.email ?? 'N/A',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.email),
-                      filled: true,
-                      fillColor: Colors.grey[200],
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: Colors.grey.shade200),
                     ),
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _saveProfile,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          _buildInfoRow(Icons.person_outline, 'Full Name', _nameController, enabled: true),
+                          const Divider(height: 32),
+                          _buildInfoRow(Icons.email_outlined, 'Email Address', TextEditingController(text: _userData?['email'] ?? 'N/A'), enabled: false),
+                          const Divider(height: 32),
+                          _buildInfoRow(Icons.phone_android_outlined, 'Mobile Number', TextEditingController(text: _userData?['phone'] ?? 'N/A'), enabled: false),
+                        ],
                       ),
-                      child: const Text('Update Profile'),
                     ),
                   ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: _saveProfile,
+                    child: const Text('Save Changes'),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: () => Provider.of<AuthProvider>(context, listen: false).signOut(),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      side: const BorderSide(color: Colors.red),
+                      foregroundColor: Colors.red,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Logout'),
+                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, TextEditingController controller, {required bool enabled}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+          ],
+        ),
+        TextField(
+          controller: controller,
+          enabled: enabled,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 8),
+          ),
+        ),
+      ],
     );
   }
 }
