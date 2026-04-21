@@ -1,58 +1,108 @@
-# Built artifacts
-bin/
-gen/
-out/
-build/
-.gradle/
-.navigation/
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
 
-# IDE - IntelliJ
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/gradle.xml
-.idea/assetWizardSettings.xml
-.idea/dictionaries
-.idea/libraries
-.idea/caches
-
-# IDE - Android Studio
+# IntelliJ related
 *.iml
 *.ipr
 *.iws
-captures/
-.externalNativeBuild/
-.cxx/
+.idea/
 
-# Local configuration files
-local.properties
+# The .vscode folder contains launch configurations and commonly used settings for
+# VS Code users. This folder should be tracked for repositories that use VS Code.
+# .vscode/
 
-# Log files
-*.log
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+__pycache__/
+build/
+lib/generated_plugin_registrant.dart
 
-# Android Studio Navigation editor temp files
-.navigation/
+# Symbolication related
+app.*.symbols
 
-# Android Studio captures folder
-captures/
+# Obfuscation related
+app.*.map.json
 
-# IntelliJ
-*.iml
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/gradle.xml
-.idea/assetWizardSettings.xml
-.idea/dictionaries
-.idea/libraries
-.idea/caches
+# Android related
+**/android/**/generated/
+**/android/gen/
+**/android/out/
+**/android/local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
 
-# Keystore files
-*.jks
-*.keystore
-*.p12
+# iOS related
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-temporarily
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/*sync/
+**/ios/**/.lsbom
+**/ios/**/DerivedData/
+**/ios/**/Icon?
+**/ios/**/Pods/
+**/ios/**/.xcworkspace/
+**/ios/**/config.status
+**/ios/**/config.log
+**/ios/**/args
+**/ios/**/unused
+**/ios/**/build/
+**/ios/**/config.status
+**/ios/**/config.log
+**/ios/**/GhostLogs/
+**/ios/**/NoteBooks/
+**/ios/**/Profiles/
+**/ios/**/project.xcworkspace/
+**/ios/**/xcuserdata/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.h
+**/ios/Runner/GeneratedPluginRegistrant.m
 
-# Google Services
-google-services.json
+# Windows related
+**/windows/flutter/ephemeral/
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
+**/windows/flutter/generated_plugins.cmake
 
-# OS specific files
-.DS_Store
-Thumbs.db
+# macOS related
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/generated_plugin_registrant.swift
+
+# Linux related
+**/linux/flutter/ephemeral/
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugin_registrant.h
+**/linux/flutter/generated_plugins.cmake
+
+# Firebase configuration files (standard practice is to exclude them)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Gradle related
+.gradle/

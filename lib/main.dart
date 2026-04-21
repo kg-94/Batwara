@@ -32,6 +32,7 @@ class MyApp extends StatelessWidget {
       child: Consumer<AuthProvider>(
         builder: (ctx, auth, _) => MaterialApp(
           title: 'Batwara',
+          debugShowCheckedModeBanner: false,
           theme: ThemeData(
             useMaterial3: true,
             colorScheme: ColorScheme.fromSeed(
@@ -79,11 +80,11 @@ class MyApp extends StatelessWidget {
             MembersScreen.routeName: (ctx) => const MembersScreen(),
             SettlementsScreen.routeName: (ctx) => const SettlementsScreen(),
             LoginScreen.routeName: (ctx) => const LoginScreen(),
-          SignupScreen.routeName: (ctx) => const SignupScreen(),
-          ProfileScreen.routeName: (ctx) => const ProfileScreen(),
-          GroupsScreen.routeName: (ctx) => const GroupsScreen(),
-          GroupDetailScreen.routeName: (ctx) => const GroupDetailScreen(),
-        },
+            SignupScreen.routeName: (ctx) => const SignupScreen(),
+            ProfileScreen.routeName: (ctx) => const ProfileScreen(),
+            GroupsScreen.routeName: (ctx) => const GroupsScreen(),
+            GroupDetailScreen.routeName: (ctx) => const GroupDetailScreen(),
+          },
         ),
       ),
     );
